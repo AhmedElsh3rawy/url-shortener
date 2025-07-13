@@ -1,0 +1,157 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>URL Shortener</title>
+    <style>
+      body {
+        font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+        max-width: 800px;
+        margin: 0 auto;
+        padding: 2rem;
+        text-align: center;
+      }
+      h1 {
+        color: #2c3e50;
+      }
+      form {
+        display: flex;
+        flex-direction: column;
+        gap: 1rem;
+        margin: 2rem 0;
+      }
+      input {
+        padding: 0.8rem;
+        font-size: 1rem;
+        border: 1px solid #ddd;
+        border-radius: 4px;
+      }
+      button {
+        background-color: #3498db;
+        color: white;
+        border: none;
+        padding: 0.8rem;
+        font-size: 1rem;
+        border-radius: 4px;
+        cursor: pointer;
+        transition: background-color 0.3s;
+      }
+      button:hover {
+        background-color: #2980b9;
+      }
+      #result {
+        margin-top: 2rem;
+        padding: 1rem;
+        border-radius: 4px;
+        display: none;
+      }
+      .success {
+        background-color: #d4edda;
+        color: #155724;
+      }
+      .error {
+        background-color: #f8d7da;
+        color: #721c24;
+      }
+      a {
+        color: #3498db;
+        text-decoration: none;
+        word-break: break-all;
+      }
+      a:hover {
+        text-decoration: underline;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>URL Shortener</h1>
+
+    <form id="shortenForm">
+      <input
+        type="url"
+        id="urlInput"
+        placeholder="Enter your long URL (e.g., https://example.com)"
+        required
+      />
+      <button type="submit">Shorten URL</button>
+    </form>
+
+    <div id="result"></div>
+
+    <script>
+      const form = document.getElementById("shortenForm");
+      const urlInput = document.getElementById("urlInput");
+      const resultDiv = document.getElementById("result");
+      const submitBtn = form.querySelector("button[type='submit']");
+
+      form.addEventListener("submit", async (e) => {
+        e.preventDefault();
+
+        const url = urlInput.value.trim();
+        if (!url) {
+          showError("Please enter a URL");
+          return;
+        }
+
+        // Basic client-side validation
+        try {
+          new URL(url); // This will throw for invalid URLs
+        } catch (e) {
+          showError("Please enter a valid URL including http:// or https://");
+          return;
+        }
+
+        try {
+          // Disable button during request
+          submitBtn.disabled = true;
+          submitBtn.textContent = "Shortening...";
+
+          const response = await fetch("/shorten", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({ url }),
+          });
+
+          const data = await response.json();
+
+          if (!response.ok) {
+            throw new Error(data.message || "Failed to shorten URL");
+          }
+
+          // Success case
+          resultDiv.innerHTML = `
+        <p>Short URL created!</p>
+        <p>Original: <a href="${data.originalUrl}" target="_blank" rel="noopener noreferrer">${data.originalUrl}</a></p>
+        <p>Short: <a href="${data.shortUrl}" target="_blank" rel="noopener noreferrer">${window.location.origin}${data.shortUrl}</a></p>
+        <p>Expires in: ${data.expiresIn}</p>
+        <button id="copyBtn" style="margin-top: 10px;">Copy Short URL</button>
+      `;
+          resultDiv.className = "success";
+
+          // Add copy functionality
+          document.getElementById("copyBtn").addEventListener("click", () => {
+            navigator.clipboard
+              .writeText(`${window.location.origin}${data.shortUrl}`)
+              .then(() => alert("URL copied to clipboard!"))
+              .catch(() => alert("Failed to copy URL"));
+          });
+        } catch (error) {
+          showError(error.message);
+        } finally {
+          submitBtn.disabled = false;
+          submitBtn.textContent = "Shorten URL";
+          resultDiv.style.display = "block";
+        }
+      });
+
+      function showError(message) {
+        resultDiv.textContent = message;
+        resultDiv.className = "error";
+        resultDiv.style.display = "block";
+      }
+    </script>
+  </body>
+</html>
